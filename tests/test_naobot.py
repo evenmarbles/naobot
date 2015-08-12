@@ -8,18 +8,14 @@ test_naobot
 Tests for `naobot` module.
 """
 
-import unittest
 
-from naobot import naobot
+class TestNaobot(object):
 
-
-class TestNaobot(unittest.TestCase):
-
-    def setUp(self):
+    def set_method(self):
         pass
 
     def test_something(self):
         pass
 
-    def tearDown(self):
+    def teardown_method(self, _):
         pass

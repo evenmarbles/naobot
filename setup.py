@@ -24,9 +24,11 @@ test_requirements = [
     'pytest',
 ]
 
+import naobot
+
 setup(
     name='naobot',
-    version='0.1.0',
+    version=naobot.__version__,
     description="Control of a Nao robot",
     long_description=readme + '\n\n' + history,
     author="Astrid Jackson",
