@@ -15,20 +15,22 @@ with open('HISTORY.rst') as history_file:
     history = history_file.read().replace('.. :changelog:', '')
 
 requirements = [
-    # TODO: put package requirements here
+    'numpy',
+    'Pillow',
+    'mlpy',
 ]
 
 test_requirements = [
-    # TODO: put package test requirements here
+    'pytest',
 ]
 
 setup(
     name='naobot',
     version='0.1.0',
-    description="Control for NAO robot",
+    description="Control of a Nao robot",
     long_description=readme + '\n\n' + history,
     author="Astrid Jackson",
-    author_email='ajackson@eecs.ucf.edu',
+    author_email='ajackons@eecs.ucf.edu',
     url='https://github.com/evenmarbles/naobot',
     packages=[
         'naobot',
@@ -37,7 +39,7 @@ setup(
                  'naobot'},
     include_package_data=True,
     install_requires=requirements,
-    license="BSD",
+    license="MIT",
     zip_safe=False,
     keywords='naobot',
     classifiers=[

@@ -1,6 +1,6 @@
-===============================
+======
 NAOBot
-===============================
+======
 
 .. image:: https://img.shields.io/travis/evenmarbles/naobot.svg
         :target: https://travis-ci.org/evenmarbles/naobot
