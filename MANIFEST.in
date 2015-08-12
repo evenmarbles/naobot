@@ -4,8 +4,15 @@ include HISTORY.rst
 include LICENSE
 include README.rst
 
+# All source files
+recursive-include naobot *
+
+# All test files
 recursive-include tests *
+
+# All documentation
+recursive-include docs *.rst conf.py Makefile make.bat
+
+# Exclude what we don't want to include
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
-
-recursive-include docs *.rst conf.py Makefile make.bat

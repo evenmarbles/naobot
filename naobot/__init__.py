@@ -5,4 +5,4 @@ __all__ = ['agent', 'behavior', 'environment', 'kinematics', 'sensors', 'world_m
 
 __author__ = 'Astrid Jackson'
 __email__ = 'ajackons@eecs.ucf.edu'
-__version__ = '0.1.0'
+__version__ = '0.1.1'
