@@ -16,3 +16,6 @@ recursive-include docs *.rst conf.py Makefile make.bat
 # Exclude what we don't want to include
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
+
+prune docs/build
+prune docs/generated
