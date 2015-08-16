@@ -148,17 +148,19 @@ class NaoBot(Agent):
 
         """
         state = self._task.sensation(**{"state": self._behavior.current_state})
-        if state is not None:
-            self._module.execute(state)
 
-            if self._keep_history:
-                if not self._history.has_field("state"):
-                    self._history.add_field("state", len(state), dtype=state.dtype, description=state.description)
-                self._history.append("state", state)
+        if not self._task.termination_requested():
+            if state is not None:
+                self._module.execute(state)
 
-                if not self._history.has_field("label"):
-                    self._history.add_field("label", 1, dtype=DataSet.DTYPE_OBJECT)
-                self._history.append("label", state.name)
+                if self._keep_history:
+                    if not self._history.has_field("state"):
+                        self._history.add_field("state", len(state), dtype=state.dtype, description=state.description)
+                    self._history.append("state", state)
+
+                    if not self._history.has_field("label"):
+                        self._history.add_field("label", 1, dtype=DataSet.DTYPE_OBJECT)
+                    self._history.append("label", state.name)
 
         if (self._task.is_episodic and state.is_terminal()) or self._task.termination_requested():
             if self._keep_history:
