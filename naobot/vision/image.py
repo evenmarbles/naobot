@@ -88,25 +88,12 @@ class ImageProcessor(Module):
         self._subscriber_top_id = None
 
         self._resolution = vision_definitions.kQVGA
-        self._ball_detector = BallDetector(self._resolution)
+        self._ball_detector = BallDetector(self.get_resolution())
 
-        self._initialize(pip, pport)
-
-    def reset(self, t, **kwargs):
-        """Reset the image processor.
-
-        Ensure that the subscriptions to the cameras are valid.
-
-        Parameters
-        ----------
-        t : float
-            The current time (sec)
-        kwargs : dict, optional
-            Non-positional parameters, optional.
-
-        """
-        super(ImageProcessor, self).reset(t, **kwargs)
-        self._initialize(self.mid.split(':')[1], int(self.mid.split(':')[2]))
+    def __getstate__(self):
+        d = super(ImageProcessor, self).__getstate__()
+        d['_mid'] = self._mid
+        return d
 
     def enter(self, t):
         """Perform preliminary setup.
@@ -118,7 +105,24 @@ class ImageProcessor(Module):
 
         """
         super(ImageProcessor, self).enter(t)
-        self._ball_detector.start()
+
+        # noinspection PyBroadException
+        try:
+            try:
+                self._cameraProxy.ping()
+            except:
+                self._cameraProxy = ALProxy("ALVideoDevice", self.mid.split(':')[1], int(self.mid.split(':')[2]))
+
+                color_space = vision_definitions.kBGRColorSpace
+                fps = 30
+                self._subscriber_btm_id = self._cameraProxy.subscribeCamera("ImageProcessor", kBottomCamera,
+                                                                            self._resolution, color_space, fps)
+                self._subscriber_top_id = self._cameraProxy.subscribeCamera("ImageProcessor", kTopCamera,
+                                                                            self._resolution, color_space, fps)
+                self._ball_detector.start()
+                self._process_image()
+        except:
+            pass
 
     def update(self, dt):
         """Update the image processor.
@@ -133,11 +137,7 @@ class ImageProcessor(Module):
 
         """
         super(ImageProcessor, self).update(dt)
-
-        image_btm = self._get_image(kBottomCamera)
-        if not self._ball_detector.update(image_btm):
-            image_top = self._get_image(kTopCamera)
-            self._ball_detector.update(image_top)
+        self._process_image()
 
     def exit(self):
         """Exit the image processor.
@@ -177,37 +177,12 @@ class ImageProcessor(Module):
             resolution = (1280, 960)
         return resolution
 
-    def _initialize(self, pip, pport):
-        """Initializes the cameras
-
-        Ensure that valid proxies to the Nao cameras exist
-        and subscribe to the cameras.
-
-        Parameters
-        ----------
-        pip : str
-            The IP of the agent for which to process the camera images.
-        pport : int
-            The port of the agent for which to process the camera images.
-
-        """
-        try:
-            # noinspection PyBroadException
-            try:
-                self._cameraProxy.ping()
-            except:
-                self._cameraProxy = ALProxy("ALVideoDevice", pip, pport)
-
-                color_space = vision_definitions.kBGRColorSpace
-                fps = 30
-                self._subscriber_btm_id = self._cameraProxy.subscribeCamera("ImageProcessor", kBottomCamera,
-                                                                            self._resolution, color_space, fps)
-                self._subscriber_top_id = self._cameraProxy.subscribeCamera("ImageProcessor", kTopCamera,
-                                                                            self._resolution, color_space, fps)
-        except:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            traceback.print_exception(exc_type, exc_value, exc_traceback)
-            sys.exit(1)
+    def _process_image(self):
+        """Process the image."""
+        image_btm = self._get_image(kBottomCamera)
+        if not self._ball_detector.update(image_btm):
+            image_top = self._get_image(kTopCamera)
+            self._ball_detector.update(image_top)
 
     def _get_image(self, camera_id):
         """Returns the image for the given camera.

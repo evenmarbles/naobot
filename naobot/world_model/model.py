@@ -30,7 +30,9 @@ class NaoWorldModel(WorldModel):
     _robot_model = None
     _robot_info = None
 
-    _current_time = None
+    _current_fsm_state = None
+
+    has_fallen = False
 
     @property
     def robot_model(self):
@@ -38,8 +40,6 @@ class NaoWorldModel(WorldModel):
 
     def __init__(self):
         super(NaoWorldModel, self).__init__()
-
-        self.has_fallen = False
 
         self.add_object('ball', Ball())
 
@@ -100,3 +100,9 @@ class NaoWorldModel(WorldModel):
         if self._robot_info is None:
             self.set_robot_params("naoH25", "VERSION_40")
         return self._robot_info[name]
+
+    def set_fsm_state(self, state):
+        self._current_fsm_state = state
+
+    def get_fsm_state(self):
+        return self._current_fsm_state

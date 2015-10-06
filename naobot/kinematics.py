@@ -63,15 +63,13 @@ class NaoMotionController(Module):
     def __init__(self, pip, pport, default_frame=None, use_sensor_values=None):
         super(NaoMotionController, self).__init__(self._generate_id(pip, pport))
 
-        self._motion_proxy = None
-        self._posture_proxy = None
-
         self._task_id = None
+
+        self._posture_proxy = None
+        self._motion_proxy = ALProxy("ALMotion", pip, pport)
 
         self._default_frame = default_frame if default_frame is not None else NaoMotionController.FRAME_ROBOT
         self._use_sensor_values = use_sensor_values if use_sensor_values is not None else True
-
-        self._initialize(pip, pport)
 
         robot_config = self._motion_proxy.getRobotConfig()
         NaoWorldModel().set_robot_params(robot_config[1][0], robot_config[1][2])
@@ -84,21 +82,10 @@ class NaoMotionController(Module):
         self._init_joint()
         self._init_camera()
 
-    def reset(self, t, **kwargs):
-        """Resets the motion controller.
-
-        Ensure that all proxies are valid.
-
-        Parameters
-        ----------
-        t : float
-            The current time (sec)
-        kwargs : dict, optional
-            Non-positional parameters, optional.
-
-        """
-        super(NaoMotionController, self).reset(t, **kwargs)
-        self._initialize(self.mid.split(':')[1], int(self.mid.split(':')[2]))
+    def __getstate__(self):
+        d = super(NaoMotionController, self).__getstate__()
+        d['_mid'] = self._mid
+        return d
 
     def enter(self, t):
         """Perform preliminary setup.
@@ -111,8 +98,27 @@ class NaoMotionController(Module):
         """
         super(NaoMotionController, self).enter(t)
 
-        self.go_to_default_posture()
-        self.update(0.0)
+        # noinspection PyBroadException
+        try:
+            pip, pport = self.mid.split(':')[1], int(self.mid.split(':')[2])
+
+            try:
+                self._posture_proxy.ping()
+            except:
+                self._posture_proxy = ALProxy("ALRobotPosture", pip, pport)
+
+            try:
+                self._motion_proxy.ping()
+            except:
+                self._motion_proxy = ALProxy("ALMotion", pip, pport)
+
+            self._motion_proxy.wakeUp()
+
+            self._read_effector()
+            self._read_joint()
+            self._read_camera()
+        except:
+            pass
 
     def update(self, dt):
         """Update the motion controller.
@@ -128,9 +134,9 @@ class NaoMotionController(Module):
         """
         super(NaoMotionController, self).update(dt)
 
-        self._update_effector()
-        self._update_joint()
-        self._update_camera()
+        self._read_effector()
+        self._read_joint()
+        self._read_camera()
 
     def go_to_posture(self, name, speed):
         """Go to predefined posture.
@@ -324,65 +330,6 @@ class NaoMotionController(Module):
             return False
         return self._motion_proxy.isRunning(self._task_id)
 
-    def _initialize(self, pip, pport):
-        """Initializes the motion controller
-
-        Ensure that valid proxies to the Nao motion and robot
-        posture exist.
-
-        Parameters
-        ----------
-        pip : str
-            The IP of the agent for which to process the camera images.
-        pport : int
-            The port of the agent for which to process the camera images.
-
-        """
-        try:
-            # noinspection PyBroadException
-            try:
-                self._motion_proxy.ping()
-                self._posture_proxy.ping()
-            except:
-                self._motion_proxy = ALProxy("ALMotion", pip, pport)
-                self._posture_proxy = ALProxy("ALRobotPosture", pip, pport)
-
-                self._motion_proxy.wakeUp()
-        except:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            traceback.print_exception(exc_type, exc_value, exc_traceback)
-            sys.exit(1)
-
-    def _init_effector(self):
-        """Initialize the position and orientation of all effectors."""
-        for x in self._effectorNames:
-            self._effector[x] = 0.0
-
-    def _init_joint(self):
-        """Initialize the position and orientation of all joints."""
-        for x in self._jointNames:
-            self._joint[x] = 0.0
-
-    def _init_camera(self):
-        """Initialize the position and orientation of all cameras."""
-        for x in self._cameraNames:
-            self._camera[x] = 0.0
-
-    def _update_effector(self):
-        """Update the position and orientation of all effectors."""
-        for x in self._effectorNames:
-            self._effector[x] = self._motion_proxy.getPosition(x, self._default_frame, self._use_sensor_values)
-
-    def _update_joint(self):
-        """Update the position and orientation of all joints."""
-        for x in self._jointNames:
-            self._joint[x] = self._motion_proxy.getPosition(x, self._default_frame, self._use_sensor_values)
-
-    def _update_camera(self):
-        """Update the position and orientation of all cameras."""
-        for x in self._cameraNames:
-            self._camera[x] = self._motion_proxy.getPosition(x, self._default_frame, self._use_sensor_values)
-
     def _calculate_target_tf(self, effector, delta_tf, frame):
         """Calculate the target transform.
 
@@ -445,6 +392,36 @@ class NaoMotionController(Module):
                 target_pos += almath.Position6D(d)
                 path.append(list(target_pos.toVector()))
         return path
+
+    def _init_effector(self):
+        """Initialize the position and orientation of all effectors."""
+        for x in self._effectorNames:
+            self._effector[x] = 0.0
+
+    def _init_joint(self):
+        """Initialize the position and orientation of all joints."""
+        for x in self._jointNames:
+            self._joint[x] = 0.0
+
+    def _init_camera(self):
+        """Initialize the position and orientation of all cameras."""
+        for x in self._cameraNames:
+            self._camera[x] = 0.0
+
+    def _read_effector(self):
+        """Read the position and orientation of all effectors."""
+        for x in self._effectorNames:
+            self._effector[x] = self._motion_proxy.getPosition(x, self._default_frame, self._use_sensor_values)
+
+    def _read_joint(self):
+        """Update the position and orientation of all joints."""
+        for x in self._jointNames:
+            self._joint[x] = self._motion_proxy.getPosition(x, self._default_frame, self._use_sensor_values)
+
+    def _read_camera(self):
+        """Update the position and orientation of all cameras."""
+        for x in self._cameraNames:
+            self._camera[x] = self._motion_proxy.getPosition(x, self._default_frame, self._use_sensor_values)
 
     def _generate_id(self, pip, pport):
         return "%s.%s:%s:%i:%i" % (self.__class__.__module__, self.__class__.__name__, pip, pport, next(self._ids))

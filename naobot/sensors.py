@@ -1,8 +1,5 @@
 from __future__ import division, print_function, absolute_import
 
-import sys
-import traceback
-
 from naoqi import ALProxy
 
 from mlpy.modules import Module
@@ -62,7 +59,6 @@ class Sensors(Module):
         super(Sensors, self).__init__(self._generate_id(pip, pport))
 
         self._memoryProxy = None
-        self._initialize(pip, pport)
 
         self._joint = NaoWorldModel().get_sensors("joint")
         self._inertial = NaoWorldModel().get_sensors("inertial")
@@ -74,24 +70,15 @@ class Sensors(Module):
         self._init_foot()
         self._init_bumper()
 
-    def reset(self, t, **kwargs):
-        """Resets Nao's sensors.
-
-        Ensure that all proxies are valid.
-
-        Parameters
-        ----------
-        t : float
-            The current time (sec)
-        kwargs : dict, optional
-            Non-positional parameters, optional.
-
-        """
-        super(Sensors, self).reset(t, **kwargs)
-        self._initialize(self.mid.split(':')[1], int(self.mid.split(':')[2]))
+    def __getstate__(self):
+        d = super(Sensors, self).__getstate__()
+        d['_mid'] = self._mid
+        return d
 
     def enter(self, t):
         """Perform preliminary setup.
+
+        Ensure that valid proxies to the Nao memory exist.
 
         Parameters
         ----------
@@ -100,7 +87,15 @@ class Sensors(Module):
 
         """
         super(Sensors, self).enter(t)
-        self.update(0.0)
+
+        try:
+            try:
+                self._memoryProxy.ping()
+            except:
+                self._memoryProxy = ALProxy("ALMemory", self.mid.split(':')[1], int(self.mid.split(':')[2]))
+                self._read_sensors()
+        except:
+            pass
 
     def update(self, dt):
         """Update Nao's sensor information.
@@ -116,35 +111,14 @@ class Sensors(Module):
 
         """
         super(Sensors, self).update(dt)
+        self._read_sensors()
 
+    def _read_sensors(self):
         self._has_fallen()
-        self._update_joint()
-        self._update_inertial()
-        self._update_foot()
-        self._update_bumper()
-
-    def _initialize(self, pip, pport):
-        """Initializes Nao's sensor.
-
-        Ensure that valid proxies to the Nao memory exist.
-
-        Parameters
-        ----------
-        pip : str
-            The IP of the agent for which to process the camera images.
-        pport : int
-            The port of the agent for which to process the camera images.
-
-        """
-        try:
-            try:
-                self._memoryProxy.ping()
-            except:
-                self._memoryProxy = ALProxy("ALMemory", pip, pport)
-        except:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            traceback.print_exception(exc_type, exc_value, exc_traceback)
-            sys.exit(1)
+        self._read_joint()
+        self._read_inertial()
+        self._read_foot()
+        self._read_bumper()
 
     def _has_fallen(self):
         """Identify if the robot has fallen."""
@@ -170,8 +144,8 @@ class Sensors(Module):
         for x in self._bumperNames:
             self._bumper[x] = 0.0
 
-    def _update_joint(self):
-        """Update the angle of all joints.
+    def _read_joint(self):
+        """Read the angle of all joints.
 
         Reads the joint angles in radians.
 
@@ -179,7 +153,7 @@ class Sensors(Module):
         for x in self._jointNames:
             self._joint[x] = self._memoryProxy.getData("Device/SubDeviceList/" + x + "/Position/Sensor/Value")
 
-    def _update_inertial(self):
+    def _read_inertial(self):
         """Extract information from the inertial sensor in the center of the body.
 
         Gyroscope
@@ -193,8 +167,8 @@ class Sensors(Module):
         for x in self._inertialNames:
             self._inertial[x] = self._memoryProxy.getData("Device/SubDeviceList/InertialSensor/" + x + "/Sensor/Value")
 
-    def _update_foot(self):
-        """Update the force sensitive resistance (FSR) of all foot sensors.
+    def _read_foot(self):
+        """Read the force sensitive resistance (FSR) of all foot sensors.
 
         These sensors measure a resistance change according to the pressure applied.
         The measurements are in kilograms.
@@ -203,8 +177,8 @@ class Sensors(Module):
         for x in self._footNames:
             self._foot[x] = self._memoryProxy.getData("Device/SubDeviceList/" + x + "/Sensor/Value")
 
-    def _update_bumper(self):
-        """Update all bumpers.
+    def _read_bumper(self):
+        """Read all bumpers.
 
         This identifies whether the bumper was pressed or not.
 
